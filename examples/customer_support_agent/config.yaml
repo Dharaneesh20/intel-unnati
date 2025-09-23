@@ -1,0 +1,92 @@
+# Configuration for Customer Support Agent
+
+# Agent Settings
+agent:
+  name: "CustomerSupportAgent"
+  version: "1.0.0"
+  timeout: 600  # 10 minutes
+  max_retries: 2
+
+# Intent Classification
+intent_classification:
+  model: "bert-base-uncased"
+  confidence_threshold: 0.7
+  categories:
+    - "account_issue"
+    - "billing_inquiry" 
+    - "technical_support"
+    - "product_question"
+    - "complaint"
+    - "compliment"
+    - "goodbye"
+    - "general_inquiry"
+
+# Knowledge Base
+knowledge_base:
+  provider: "local"  # Options: local, elasticsearch, vector_db
+  max_results: 5
+  relevance_threshold: 0.3
+
+# Sentiment Analysis
+sentiment_analysis:
+  model: "vader"  # Options: vader, bert, custom
+  threshold:
+    positive: 0.1
+    negative: -0.1
+
+# Escalation Rules
+escalation:
+  high_priority_intents:
+    - "complaint"
+    - "billing_inquiry"
+  sentiment_threshold: -0.5
+  confidence_threshold: 0.3
+  max_conversation_length: 5
+  vip_customer_immediate_escalation: true
+
+# Response Generation
+response_generation:
+  model: "gpt-3.5-turbo"  # Options: gpt-3.5-turbo, local_model
+  max_tokens: 150
+  temperature: 0.7
+  
+# Conversation Tracking
+conversation:
+  storage: "memory"  # Options: memory, redis, database
+  retention_days: 30
+  
+# Channels
+channels:
+  - "chat"
+  - "email" 
+  - "phone"
+  - "social_media"
+
+# Business Hours
+business_hours:
+  timezone: "UTC"
+  monday: "09:00-17:00"
+  tuesday: "09:00-17:00"
+  wednesday: "09:00-17:00"
+  thursday: "09:00-17:00"
+  friday: "09:00-17:00"
+  saturday: "10:00-16:00"
+  sunday: "closed"
+
+# Escalation Queues
+escalation_queues:
+  general:
+    priority: "normal"
+    sla_minutes: 60
+  billing:
+    priority: "high"
+    sla_minutes: 30
+  complaints:
+    priority: "high"
+    sla_minutes: 15
+  vip:
+    priority: "critical"
+    sla_minutes: 5
+  technical:
+    priority: "medium"
+    sla_minutes: 45
