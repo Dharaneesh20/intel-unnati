@@ -5,9 +5,9 @@ Core framework initialization and main entry point.
 __version__ = "1.0.0"
 __author__ = "Intel AI Agent Framework Team"
 
-from .workflow import Workflow, Task
-from .agents import Agent
-from .state_machine import StateMachine, State, Transition
+from .core.workflow import Workflow, Task
+from .core.agents import Agent
+from .core.state_machine import StateMachine, State, Transition
 
 __all__ = [
     "Workflow",

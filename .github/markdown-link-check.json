@@ -1,0 +1,35 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^https://img\\.shields\\.io/"
+    },
+    {
+      "pattern": "^https://opensource\\.org/"
+    },
+    {
+      "pattern": "^https://www\\.python\\.org/"
+    },
+    {
+      "pattern": "^https://devcloud\\.intel\\.com/"
+    },
+    {
+      "pattern": "^https://openvino\\.ai/"
+    },
+    {
+      "pattern": "^mailto:"
+    }
+  ],
+  "timeout": "30s",
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackHttpStatus": [
+    400,
+    401,
+    403,
+    404,
+    500,
+    502,
+    503,
+    504
+  ]
+}

@@ -1,0 +1,312 @@
+name: Performance Monitoring
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # Daily at 4 AM
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - 'benchmarks/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - 'benchmarks/**'
+  workflow_dispatch:
+
+jobs:
+  # Performance Benchmarks
+  benchmarks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+        
+    name: Benchmarks Python ${{ matrix.python-version }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-benchmark memory-profiler psutil
+        
+    - name: Create benchmark directory
+      run: |
+        mkdir -p benchmarks
+        
+    - name: Create benchmark tests
+      run: |
+        cat > benchmarks/test_performance.py << 'EOF'
+        import pytest
+        import asyncio
+        import time
+        import sys
+        import os
+        from pathlib import Path
+        
+        # Add src to path
+        sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+        
+        from examples.standalone_demo import SimpleAgent, MockTool
+        
+        class TestPerformance:
+            """Performance benchmark tests."""
+            
+            def test_agent_creation_speed(self, benchmark):
+                """Benchmark agent creation speed."""
+                def create_agent():
+                    tools = [MockTool(f"tool_{i}", 0.001) for i in range(10)]
+                    return SimpleAgent("benchmark_agent", tools)
+                
+                result = benchmark(create_agent)
+                assert result is not None
+            
+            def test_tool_execution_speed(self, benchmark):
+                """Benchmark tool execution speed."""
+                tool = MockTool("speed_test", 0.001)
+                
+                def execute_tool():
+                    return asyncio.run(tool.execute({"test": "data"}))
+                
+                result = benchmark(execute_tool)
+                assert result["status"] == "completed"
+            
+            def test_workflow_execution_speed(self, benchmark):
+                """Benchmark complete workflow execution."""
+                tools = [MockTool(f"tool_{i}", 0.01) for i in range(5)]
+                agent = SimpleAgent("benchmark_agent", tools)
+                
+                def execute_workflow():
+                    inputs = {"test_data": "benchmark", "iterations": 100}
+                    return asyncio.run(agent.execute(inputs))
+                
+                result = benchmark(execute_workflow)
+                assert result["status"] == "completed"
+            
+            def test_memory_usage(self, benchmark):
+                """Benchmark memory usage during execution."""
+                import psutil
+                import os
+                
+                def measure_memory():
+                    process = psutil.Process(os.getpid())
+                    initial_memory = process.memory_info().rss
+                    
+                    # Create multiple agents
+                    agents = []
+                    for i in range(50):
+                        tools = [MockTool(f"tool_{j}", 0.001) for j in range(5)]
+                        agents.append(SimpleAgent(f"agent_{i}", tools))
+                    
+                    final_memory = process.memory_info().rss
+                    return final_memory - initial_memory
+                
+                memory_usage = benchmark(measure_memory)
+                # Assert memory usage is reasonable (less than 100MB)
+                assert memory_usage < 100 * 1024 * 1024
+        EOF
+        
+    - name: Run benchmarks
+      run: |
+        pytest benchmarks/ --benchmark-only --benchmark-json=benchmark-${{ matrix.python-version }}.json
+        
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmarks-${{ matrix.python-version }}
+        path: benchmark-${{ matrix.python-version }}.json
+
+  # Load Testing
+  load-test:
+    runs-on: ubuntu-latest
+    name: Load Testing
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install locust
+        
+    - name: Create load test script
+      run: |
+        cat > load_test.py << 'EOF'
+        from locust import HttpUser, task, between
+        import random
+        import json
+        
+        class AIAgentUser(HttpUser):
+            wait_time = between(1, 3)
+            
+            def on_start(self):
+                """Called when a user starts."""
+                pass
+            
+            @task(3)
+            def process_text(self):
+                """Simulate text processing requests."""
+                payload = {
+                    "text": f"Sample text for processing {random.randint(1, 1000)}",
+                    "task_type": "text_analysis",
+                    "user_id": f"user_{random.randint(1, 100)}"
+                }
+                
+                # Simulate API call (would be actual endpoint in production)
+                response = self.client.post(
+                    "/api/v1/process",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+            
+            @task(2)
+            def health_check(self):
+                """Health check endpoint."""
+                self.client.get("/health")
+            
+            @task(1)
+            def get_status(self):
+                """Status endpoint."""
+                self.client.get("/api/v1/status")
+        EOF
+        
+    - name: Start mock API server
+      run: |
+        # Create a simple mock API for load testing
+        cat > mock_api.py << 'EOF'
+        from fastapi import FastAPI
+        import uvicorn
+        import asyncio
+        import random
+        
+        app = FastAPI()
+        
+        @app.get("/health")
+        async def health():
+            return {"status": "healthy"}
+        
+        @app.get("/api/v1/status")
+        async def status():
+            return {"status": "running", "active_agents": random.randint(1, 10)}
+        
+        @app.post("/api/v1/process")
+        async def process(data: dict):
+            # Simulate processing time
+            await asyncio.sleep(random.uniform(0.1, 0.5))
+            return {
+                "status": "completed",
+                "result": f"Processed: {data.get('text', '')[:50]}...",
+                "processing_time": random.uniform(0.1, 0.5)
+            }
+        
+        if __name__ == "__main__":
+            uvicorn.run(app, host="0.0.0.0", port=8000)
+        EOF
+        
+        python mock_api.py &
+        sleep 5  # Wait for server to start
+        
+    - name: Run load test
+      run: |
+        locust -f load_test.py --host=http://localhost:8000 \
+               --users=50 --spawn-rate=5 --run-time=2m \
+               --html=load-test-report.html --csv=load-test
+        
+    - name: Upload load test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: load-test-results
+        path: |
+          load-test-report.html
+          load-test_*.csv
+
+  # Performance Comparison
+  performance-comparison:
+    runs-on: ubuntu-latest
+    needs: benchmarks
+    name: Performance Comparison
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout base branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.base.sha }}
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-benchmark
+        
+    - name: Run baseline benchmarks
+      run: |
+        pytest benchmarks/ --benchmark-only --benchmark-json=baseline-benchmark.json
+        
+    - name: Checkout PR branch
+      uses: actions/checkout@v4
+      
+    - name: Run PR benchmarks
+      run: |
+        pytest benchmarks/ --benchmark-only --benchmark-json=pr-benchmark.json
+        
+    - name: Compare performance
+      run: |
+        python -c "
+        import json
+        
+        with open('baseline-benchmark.json') as f:
+            baseline = json.load(f)
+        
+        with open('pr-benchmark.json') as f:
+            pr_data = json.load(f)
+        
+        print('# Performance Comparison')
+        print('| Test | Baseline | PR | Change |')
+        print('|------|----------|----|---------| ')
+        
+        for test in baseline['benchmarks']:
+            test_name = test['name']
+            baseline_time = test['stats']['mean']
+            
+            # Find corresponding test in PR data
+            pr_test = next((t for t in pr_data['benchmarks'] if t['name'] == test_name), None)
+            if pr_test:
+                pr_time = pr_test['stats']['mean']
+                change = ((pr_time - baseline_time) / baseline_time) * 100
+                change_str = f'{change:+.1f}%'
+                print(f'| {test_name} | {baseline_time:.4f}s | {pr_time:.4f}s | {change_str} |')
+        " > performance-comparison.md
+        
+    - name: Upload performance comparison
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-comparison
+        path: performance-comparison.md

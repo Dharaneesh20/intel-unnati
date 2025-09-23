@@ -1,0 +1,186 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'docs/**'
+      - '*.md'
+      - 'src/**/*.py'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'docs/**'
+      - '*.md'
+      - 'src/**/*.py'
+  workflow_dispatch:
+
+jobs:
+  # Build Documentation
+  build-docs:
+    runs-on: ubuntu-latest
+    name: Build Documentation
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for git info
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install documentation dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin
+        pip install mkdocstrings mkdocstrings-python
+        pip install mkdocs-git-revision-date-localized-plugin
+        pip install mkdocs-minify-plugin
+        
+    - name: Generate API documentation
+      run: |
+        mkdir -p docs/api
+        python -c "
+        import pkgutil
+        import sys
+        sys.path.insert(0, 'src')
+        import src
+        
+        def generate_api_docs(package, path='docs/api'):
+            import os
+            os.makedirs(path, exist_ok=True)
+            
+            for importer, modname, ispkg in pkgutil.iter_modules(package.__path__, package.__name__ + '.'):
+                if ispkg:
+                    continue
+                    
+                module_path = modname.replace('.', '/')
+                doc_file = f'{path}/{modname.split(\".\")[-1]}.md'
+                
+                with open(doc_file, 'w') as f:
+                    f.write(f'# {modname}\\n\\n')
+                    f.write(f'::: {modname}\\n')
+        
+        generate_api_docs(src)
+        "
+        
+    - name: Build documentation
+      run: |
+        mkdocs build --strict
+        
+    - name: Upload documentation
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: site/
+
+  # Check Documentation Links
+  link-check:
+    runs-on: ubuntu-latest
+    name: Check Documentation Links
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check links in Markdown files
+      uses: gaurav-nelson/github-action-markdown-link-check@v1
+      with:
+        use-quiet-mode: 'yes'
+        use-verbose-mode: 'yes'
+        config-file: '.github/markdown-link-check.json'
+
+  # Spell Check
+  spell-check:
+    runs-on: ubuntu-latest
+    name: Spell Check Documentation
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check spelling
+      uses: crate-ci/typos@master
+      with:
+        files: '*.md docs/ examples/'
+
+  # Deploy Documentation
+  deploy-docs:
+    runs-on: ubuntu-latest
+    needs: [build-docs, link-check]
+    name: Deploy Documentation
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install documentation dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin
+        pip install mkdocstrings mkdocstrings-python
+        pip install mkdocs-git-revision-date-localized-plugin
+        pip install mkdocs-minify-plugin
+        
+    - name: Deploy to GitHub Pages
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        mkdocs gh-deploy --force
+
+  # Documentation Quality Check
+  doc-quality:
+    runs-on: ubuntu-latest
+    name: Documentation Quality Check
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pydocstyle docstring-coverage
+        
+    - name: Check docstring style
+      run: |
+        pydocstyle src/ --count --convention=google
+      continue-on-error: true
+        
+    - name: Check docstring coverage
+      run: |
+        docstring-coverage src/ --badge=docs/coverage-badge.svg
+        
+    - name: Generate documentation metrics
+      run: |
+        echo "# Documentation Metrics" > doc-metrics.md
+        echo "" >> doc-metrics.md
+        echo "## Docstring Coverage" >> doc-metrics.md
+        docstring-coverage src/ --verbose >> doc-metrics.md
+        
+    - name: Upload documentation metrics
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation-metrics
+        path: |
+          doc-metrics.md
+          docs/coverage-badge.svg
