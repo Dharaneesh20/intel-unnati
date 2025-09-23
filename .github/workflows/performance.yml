@@ -30,7 +30,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         
@@ -121,7 +121,7 @@ jobs:
         pytest benchmarks/ --benchmark-only --benchmark-json=benchmark-${{ matrix.python-version }}.json
         
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: benchmarks-${{ matrix.python-version }}
         path: benchmark-${{ matrix.python-version }}.json
@@ -141,7 +141,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
         
@@ -235,7 +235,7 @@ jobs:
                --html=load-test-report.html --csv=load-test
         
     - name: Upload load test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: load-test-results
         path: |
@@ -256,7 +256,7 @@ jobs:
         ref: ${{ github.event.pull_request.base.sha }}
         
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
         
@@ -306,7 +306,7 @@ jobs:
         " > performance-comparison.md
         
     - name: Upload performance comparison
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: performance-comparison
         path: performance-comparison.md
