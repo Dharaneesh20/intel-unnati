@@ -1,0 +1,14 @@
+# Apache Airflow Optional Dependencies
+# Install these separately if you need Apache Airflow integration
+
+# Core Apache Components
+apache-airflow>=2.7.0,<2.8.0
+kafka-python>=2.0.2
+apache-airflow-providers-celery>=3.4.0
+apache-airflow-providers-redis>=3.4.0
+apache-airflow-providers-postgres>=5.7.0
+
+# These will be automatically resolved with compatible versions:
+# sqlalchemy>=1.4.36,<2.0
+# opentelemetry-api==1.15.0
+# opentelemetry-sdk==1.15.0

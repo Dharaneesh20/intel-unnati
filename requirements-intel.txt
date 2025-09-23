@@ -1,0 +1,11 @@
+# Intel Optimizations Optional Dependencies
+# Install these if you have Intel hardware and want optimizations
+
+# Intel OpenVINO
+openvino>=2023.1.0
+
+# Intel PyTorch Extensions
+intel-extension-for-pytorch>=2.1.0
+
+# Intel oneAPI (if available)
+# intel-extension-for-tensorflow>=2.13.0

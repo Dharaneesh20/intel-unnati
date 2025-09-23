@@ -1,0 +1,118 @@
+name: Security Scanning
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2 AM
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  # Dependency Vulnerability Scanning
+  dependency-scan:
+    runs-on: ubuntu-latest
+    name: Dependency Vulnerability Scan
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety pip-audit
+        pip install -r requirements.txt
+        
+    - name: Run Safety check
+      run: |
+        safety check --json --output safety-report.json || echo "Safety check completed"
+      continue-on-error: true
+        
+    - name: Run pip-audit
+      run: |
+        pip-audit --format=json --output=pip-audit-report.json || echo "Pip-audit completed"
+      continue-on-error: true
+        
+    - name: Upload vulnerability reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: vulnerability-reports
+        path: |
+          safety-report.json
+          pip-audit-report.json
+        retention-days: 30
+
+  # Code Security Scanning
+  code-security:
+    runs-on: ubuntu-latest
+    name: Code Security Analysis
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit
+        
+    - name: Run Bandit security scan
+      run: |
+        bandit -r src/ -f json -o bandit-security-report.json || echo "Bandit completed"
+      continue-on-error: true
+        
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-scan-results
+        path: bandit-security-report.json
+        retention-days: 30
+
+  # License Compliance Check
+  license-check:
+    runs-on: ubuntu-latest
+    name: License Compliance
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        
+    - name: Install license checker
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-licenses
+        pip install -r requirements.txt
+        
+    - name: Check licenses
+      run: |
+        pip-licenses --format=json --output-file=licenses-report.json || echo "License check completed"
+        pip-licenses --format=csv --output-file=licenses-report.csv || echo "License CSV completed"
+        
+    - name: Upload license reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: license-reports
+        path: |
+          licenses-report.json
+          licenses-report.csv
+        retention-days: 30
