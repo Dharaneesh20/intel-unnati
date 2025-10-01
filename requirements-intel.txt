@@ -1,0 +1,18 @@
+# Intel Optimization Dependencies
+# Install these separately for Intel-specific optimizations
+
+# Intel Tools (install with specific instructions)
+# Note: These require specific installation procedures
+
+# For Intel Extension for PyTorch:
+# pip install intel-extension-for-pytorch==1.13.0+cpu -f https://developer.intel.com/ipex-whl-stable-cpu
+
+# For OpenVINO:
+# pip install openvino==2023.1.0
+
+# For Neural Compressor:
+# pip install neural-compressor==2.3.0
+
+# Additional Intel libraries
+mkl>=2023.0.0
+intel-openmp>=2023.0.0

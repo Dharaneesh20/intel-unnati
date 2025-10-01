@@ -1,0 +1,29 @@
+{
+  "overall_status": "\u26a0\ufe0f MOSTLY READY (minor issues)",
+  "duration": 2.5661540031433105,
+  "results": {
+    "python_version": "PASS",
+    "memory": "PASS",
+    "cpu": "PASS",
+    "disk": "PASS",
+    "system_requirements": "PASS",
+    "framework_files": "PASS",
+    "python_environment": "PASS",
+    "dependencies": "PASS",
+    "core_framework": "FAIL",
+    "orchestration": "PASS",
+    "monitoring": "PASS",
+    "api": "PASS",
+    "performance": "PASS",
+    "memory_usage": "PASS",
+    "concurrent_execution": "PASS",
+    "intel_components": "PASS",
+    "apache_components": "PASS"
+  },
+  "summary": {
+    "total": 17,
+    "passed": 16,
+    "warnings": 0,
+    "failed": 1
+  }
+}
